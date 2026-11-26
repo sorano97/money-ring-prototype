@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Money Ring プロトタイプ</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap">
+<style>
+/* VOICE: 小学生向けおこづかいアプリ。既存Money Ringの見た目をそのまま再現
+   IDEA: 実機アプリそのもの。PCではスマホ枠の中で動く
+   PICTURE: 操作できるアプリ画面
+   COLOUR and TYPE: 緑#199344、背景#E8F4EC、オレンジのタグ、ふえた=青/へった=赤。Noto Sans JP
+   LAYOUT: 幅402pxの1カラム。下にタブ、上にヘッダー */
+:root{color-scheme:light dark;--desk:light-dark(#dfe9e2,#18201b);--deskInk:light-dark(#2b3a30,#cfe0d4);
+--g:#199344;--gl:#e8f4ec;--gs:#f3f9f5;--gm:#d1e9da;--ink:#192131;--sub:#525252;--mute:#8a8a8a;--line:#e5e5e5;--or:#f08300;--red:#dc2626;--blue:#2563eb}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--desk);color:var(--deskInk);font:16px/1.55 "Noto Sans JP",system-ui,sans-serif;overflow-x:clip}
+.wrap{display:flex;gap:40px;justify-content:center;align-items:flex-start;padding:32px 16px}
+.side{max-width:300px;padding-top:40px}.side h1{font-size:32px;line-height:1.1;margin:0 0 12px;font-weight:700}.side p{font-size:14px;margin:0 0 10px}
+.phone{width:402px;height:874px;border-radius:44px;background:var(--gl);color:var(--ink);overflow:hidden;position:relative;box-shadow:0 30px 60px rgba(0,0,0,.18),0 0 0 10px #10170f;display:flex;flex-direction:column;flex:none}
+@media(max-width:760px){.side{display:none}.wrap{padding:0}.phone{width:100%;height:100dvh;border-radius:0;box-shadow:none}}
+.sb{height:48px;display:flex;justify-content:space-between;align-items:center;padding:8px 30px 0;font:600 15px system-ui;flex:none}
+.ah{height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 8px 0 16px;flex:none}
+.who{display:flex;align-items:center;gap:8px;font-size:14px}.av{width:32px;height:32px;border-radius:50%;background:var(--gm);display:grid;place-items:center}
+.ahr{display:flex}.bell{position:relative}.bell b{position:absolute;top:4px;right:4px;min-width:18px;height:18px;border-radius:9px;background:var(--red);color:#fff;font:600 11px system-ui;display:grid;place-items:center;padding:0 4px}
+.hd{height:52px;display:grid;grid-template-columns:44px 1fr 44px;align-items:center;flex:none;padding:0 6px}
+.hd h2{margin:0;text-align:center;font-size:16px;font-weight:500}
+.ib{width:44px;height:44px;border:0;background:none;display:grid;place-items:center;cursor:pointer;color:var(--ink);border-radius:22px;flex:none}
+:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.tabs{display:flex;flex:none;border-bottom:1px solid var(--gm)}
+.tabs button{flex:1;height:44px;border:0;background:none;font:300 16px "Noto Sans JP";color:var(--ink);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabs button.on{background:#fff;color:var(--g);font-weight:500;border-color:var(--g)}
+.seg{display:flex;padding:8px 16px 0;flex:none;border-bottom:1px solid var(--gm)}
+.seg button{flex:1;height:40px;border:0;background:none;font:500 16px "Noto Sans JP";color:#a3a3a3;cursor:pointer;border-radius:10px 10px 0 0}
+.seg button.on{background:#fff;color:var(--ink)}
+.month{display:flex;align-items:center;justify-content:space-between;background:var(--gm);height:48px;flex:none;padding:0 8px}
+.month button{border:0;background:none;font:500 14px "Noto Sans JP";color:var(--g);cursor:pointer;min-height:44px;padding:0 10px}.month button:disabled{color:#a3a3a3;cursor:default}
+.month b{font-size:18px;font-weight:500;color:var(--g)}
+.body{flex:1;overflow-y:auto;padding:14px 16px 24px;display:flex;flex-direction:column;gap:12px}
+.body.flush{padding:0;gap:0}
+.foot{flex:none;background:#fff;padding:12px 16px 14px;display:flex;gap:12px}
+.nav{flex:none;background:#fff;display:flex;padding:6px 0 22px;border-radius:16px 16px 0 0;box-shadow:0 -2px 8px rgba(0,0,0,.05)}
+.nav button{flex:1;border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:2px;font:500 12px "Noto Sans JP";color:#a3a3a3;cursor:pointer;min-height:52px}
+.nav button.on{color:var(--g)}
+.card{background:#fff;border-radius:12px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.08);display:flex;flex-direction:column;gap:8px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.lbl{font-size:14px;color:var(--sub);font-weight:500}.small{font-size:12px;color:var(--mute);font-weight:300}
+.yen{font-family:-apple-system,"SF Pro Display",system-ui,sans-serif;font-weight:600;white-space:nowrap}.yen small{font:500 12px "Noto Sans JP";margin-left:1px}
+.big{font-size:30px}.mid{font-size:20px}.plus{color:var(--blue)}.minus{color:var(--red)}
+.btn{flex:1;height:48px;border-radius:24px;border:0;background:var(--g);color:#fff;font:500 16px "Noto Sans JP";cursor:pointer}
+.btn.sub{background:var(--gl);color:var(--g)}.btn.out{background:#fff;color:var(--g);border:1.5px solid var(--g)}
+.btn:disabled{background:#d4d4d4;color:#fff;border-color:#d4d4d4;cursor:not-allowed}
+.pill{border:0;background:var(--gl);color:var(--g);font:500 15px "Noto Sans JP";border-radius:20px;padding:8px 20px;cursor:pointer;min-height:40px}
+.link{border:0;background:var(--gl);color:var(--g);font:500 14px "Noto Sans JP";border-radius:10px;padding:11px 14px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;width:100%}
+.tl{border:0;background:none;color:var(--blue);font:300 14px "Noto Sans JP";cursor:pointer;padding:8px 0;min-height:36px}
+.badge{display:inline-block;font-size:12px;font-weight:500;color:#fff;background:var(--or);border-radius:10px;padding:1px 8px;width:max-content;line-height:1.5}
+.badge.gray{background:#a3a3a3}.badge.g{background:var(--g)}.badge.blue{background:var(--blue)}
+.wish{display:grid;grid-template-columns:56px 1fr auto;gap:12px;align-items:center}
+.thumb{width:56px;height:56px;border-radius:8px;background:var(--gl);display:grid;place-items:center}
+.bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden}.bar i{display:block;height:100%;background:var(--g);border-radius:4px;transition:width .4s}
+@media(prefers-reduced-motion:reduce){.bar i,.toggle::after{transition:none}}
+.x{border:0;background:none;color:var(--mute);font-size:13px;cursor:pointer;padding:10px;min-height:44px}
+.chips{display:flex;gap:8px}.chip{flex:1;min-height:40px;border-radius:20px;border:1px solid #d4d4d4;background:#fff;color:var(--sub);font:500 14px "Noto Sans JP";cursor:pointer;padding:4px 6px}
+.chip.on{background:var(--g);border-color:var(--g);color:#fff}.chip.blue.on{background:var(--blue);border-color:var(--blue)}.chip.red.on{background:var(--red);border-color:var(--red)}
+.field{display:flex;flex-direction:column;gap:6px}.field>span{font-size:14px;font-weight:500}
+input,textarea{font:300 16px "Noto Sans JP";color:var(--ink);background:#fff;border:1px solid #d4d4d4;border-radius:8px;padding:10px 12px;width:100%}
+textarea{resize:none;height:64px}
+.note{background:var(--gs);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--sub);font-weight:300}.note.gray{background:#f5f5f5}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:10px}.cmp .card{border:1.5px solid var(--g);padding:14px;gap:4px}.cmp .card.or{border-color:var(--or)}
+.err{color:var(--red);font-size:12px;margin:0}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stats div{background:var(--gl);border-radius:8px;padding:8px;text-align:center;font-size:12px;color:var(--sub)}
+.stats b{display:block;font:600 18px system-ui;color:var(--g)}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--red);margin-right:4px;vertical-align:middle}
+.msg{display:flex;flex-direction:column;gap:2px;max-width:78%}.msg.me{align-self:flex-end;align-items:flex-end}
+.msg p{margin:0;padding:10px 14px;border-radius:16px 16px 16px 4px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.08);font-size:14px;font-weight:300}
+.msg.me p{background:var(--g);color:#fff;border-radius:16px 16px 4px 16px}
+.toggle{width:50px;height:30px;border-radius:15px;border:0;background:#d4d4d4;position:relative;cursor:pointer;flex:none}
+.toggle::after{content:"";position:absolute;top:4px;left:4px;width:22px;height:22px;border-radius:50%;background:#fff;transition:left .2s}
+.toggle.on{background:var(--g)}.toggle.on::after{left:24px}
+.toast{position:absolute;left:50%;bottom:120px;transform:translateX(-50%);background:var(--ink);color:#fff;font-size:14px;padding:10px 16px;border-radius:20px;white-space:nowrap;opacity:0;transition:opacity .3s;pointer-events:none;z-index:5}
+.toast.show{opacity:1}
+.empty{text-align:center;color:var(--mute);font-size:14px;padding:24px 0;font-weight:300;margin:0}
+h3{margin:0;font-size:16px;font-weight:500}
+.mcard{width:100%;aspect-ratio:1.55;border-radius:12px;background:linear-gradient(135deg,#d9d9d9,#f2f2f2);position:relative;overflow:hidden;box-shadow:0 4px 10px rgba(0,0,0,.12)}
+.mcard svg{position:absolute;right:-6%;bottom:0;height:88%;width:auto}.mcard span{position:absolute;left:16px;bottom:14px;color:#8a8a8a;font-weight:500;font-size:14px;z-index:1;background:rgba(240,240,240,.75);padding:2px 8px 4px;border-radius:8px}.mcard b{display:block;font:600 22px system-ui}
+.wtab{display:flex;justify-content:center;gap:24px}.wtab button{width:64px;height:76px;border-radius:12px;border:0;background:#f5f5f5;font:500 12px "Noto Sans JP";color:var(--ink);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.wtab button.on{background:var(--gl);color:var(--g);box-shadow:inset 0 0 0 1.5px var(--g)}
+.cashrow{display:flex;align-items:center;gap:12px}.cashrow .ic{width:40px;height:40px;border-radius:50%;background:var(--gl);display:grid;place-items:center}
+.led{display:flex;justify-content:space-between;align-items:flex-end;gap:8px;padding:14px 0;border-bottom:1px solid var(--line)}.led:last-child{border-bottom:0}
+.led .d{font-size:14px;color:var(--sub);font-weight:300}.tag{font-size:11px;color:#fff;background:var(--or);border-radius:8px;padding:0 6px;margin-left:4px;vertical-align:2px}.tag.c{background:#4c9a6a}
+.tug{display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--line)}.tug i{display:block;height:100%}
+.sec{background:#fff;padding:16px;display:flex;flex-direction:column;gap:6px}
+.acc{border:0;background:none;display:flex;align-items:center;gap:8px;font:500 16px "Noto Sans JP";color:var(--ink);cursor:pointer;padding:16px 0 8px;width:100%;text-align:left}
+.acc svg{transition:transform .2s}.acc.open svg{transform:rotate(90deg)}
+.mis{background:#fff;border-radius:8px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.08);display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+.mis .t{font-size:14px;font-weight:500}.mis .dl{font-size:12px;color:var(--red);font-weight:300;white-space:nowrap}.mis .dsc{font-size:14px;color:#a3a3a3;font-weight:300}
+.mrow{background:#fff;border-radius:12px;display:flex;justify-content:space-between;align-items:center;padding:0 16px;min-height:56px;border:0;width:100%;font:300 16px "Noto Sans JP";color:var(--ink);cursor:pointer;text-align:left}
+.ntc{background:#fff;padding:14px 16px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:2px}.ntc b{font-weight:500;font-size:15px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="side">
+    <h1>Money Ring</h1>
+    <p>今のMoney Ringの機能（ホーム、おこづかい帳、ミッション、お知らせ、メニュー）に、新機能「かう？まつ？」を組み込んだプロトタイプです。</p>
+    <p>お金のデータはすべてつながっています。かうとおこづかい帳に記録されて、ミッションをクリアするとおこづかいがふえます。</p>
+    <p class="small">表示しているデータは見本です。入力内容はこのブラウザにだけ保存されます。メニューの「デモそうさ」から最初の状態にもどせます。</p>
+  </div>
+  <div class="phone" id="app" aria-live="polite"></div>
+</div>
+<script>
+{
+const app=document.getElementById('app');
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=n=>Number(n).toLocaleString('ja-JP');
+const yen=(n,cls='')=>`<span class="yen ${cls}">${fmt(n)}<small>円</small></span>`;
+const syen=(n,cls='')=>`<span class="yen ${cls} ${n>=0?'plus':'minus'}">${n>=0?'+':'-'}${fmt(Math.abs(n))}<small>円</small></span>`;
+const today=()=>{const d=new Date();d.setHours(0,0,0,0);return d};
+const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const addDays=n=>{const d=today();d.setDate(d.getDate()+n);return iso(d)};
+const W='日月火水木金土';
+const jd=s=>{if(!s)return'';const d=new Date(s+'T00:00');return`${d.getMonth()+1}月${d.getDate()}日（${W[d.getDay()]}）`};
+const jdy=s=>{const d=new Date(s+'T00:00');return`${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日(${W[d.getDay()]})`};
+const num=v=>parseInt(String(v).replace(/[^0-9]/g,''))||0;
+const LV={すごく:0,けっこう:1,ちょっと:2};
+const I={
+ back:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="#192131" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+ gift:'<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><rect x="3" y="8" width="18" height="4" rx="1" stroke="#199344" stroke-width="1.6"/><path d="M5 12v8h14v-8M12 8v12" stroke="#199344" stroke-width="1.6" stroke-linecap="round"/><path d="M12 8c-1.5-3-5-3-5-1s3 1 5 1zM12 8c1.5-3 5-3 5-1s-3 1-5 1z" stroke="#199344" stroke-width="1.6" stroke-linejoin="round"/></svg>',
+ arrow:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="#199344" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+ chev:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+ send:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 12l16-8-6 16-2-7-8-1z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/></svg>',
+ user:'<svg width="16" height="16" viewBox="0 0 24 24" fill="#8aa596"><circle cx="12" cy="8" r="4"/><path d="M4 20c1-4 4.5-6 8-6s7 2 8 6z"/></svg>',
+ bell:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M6 17V11a6 6 0 0112 0v6l1.5 2h-15z" stroke="#199344" stroke-width="2" stroke-linejoin="round"/><path d="M10 21h4" stroke="#199344" stroke-width="2" stroke-linecap="round"/></svg>',
+ menu:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M3 12h18M3 18h18" stroke="#199344" stroke-width="2.2" stroke-linecap="round"/></svg>',
+ card:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 10h18" stroke="currentColor" stroke-width="2"/></svg>',
+ wallet:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><rect x="12" y="10" width="9" height="5" rx="1" stroke="currentColor" stroke-width="2"/></svg>',
+ home:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 11l8-7 8 7v9h-5v-6h-6v6H4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>',
+ book:'<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M5 3h10l4 4v5l-6 6-1 3H5z"/><path d="M20.5 11.5l2 2-7 7h-2v-2z" fill="currentColor"/></svg>',
+ flag:'<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M6 3h12v18l-6-4-6 4z"/><path d="M9 10l2 2 4-4" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round"/></svg>',
+ warn:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#dc2626" stroke-width="2"/><path d="M12 7v6M12 16v1" stroke="#dc2626" stroke-width="2" stroke-linecap="round"/></svg>'};
+const LOGO='<svg viewBox="0 0 200 150" fill="none"><circle cx="70" cy="45" r="22" fill="#2e9a4a"/><circle cx="150" cy="22" r="18" fill="#9bbf3a"/><path d="M20 150 C30 70 110 60 110 120 C110 150 90 150 92 125 C96 80 140 40 200 90" stroke="url(#lg)" stroke-width="18" fill="none" stroke-linecap="round"/><defs><linearGradient id="lg" x1="0" x2="1"><stop offset="0" stop-color="#2e9a4a"/><stop offset=".6" stop-color="#9bbf3a"/><stop offset="1" stop-color="#f2b233"/></linearGradient></defs></svg>';
+
+/* ---------- data ---------- */
+const seed=()=>({card:1800,cash:1200,seq:100,notify:true,
+ ledger:[
+  {id:1,date:addDays(-25),title:'おこづかい',amount:1500,src:'カード'},
+  {id:2,date:addDays(-22),title:'ジュース',amount:-150,src:'現金'},
+  {id:3,date:addDays(-18),title:'ミッション：おふろそうじ',amount:200,src:'カード'},
+  {id:4,date:addDays(-11),title:'ノートとえんぴつ',amount:-320,src:'カード'},
+  {id:5,date:addDays(-6),title:'おばあちゃんから',amount:1000,src:'現金'},
+  {id:6,date:addDays(-56),title:'おこづかい',amount:1500,src:'カード'},
+  {id:7,date:addDays(-50),title:'マンガ',amount:-500,src:'現金'},
+  {id:8,date:addDays(-40),title:'おまつりのくじ',amount:-300,src:'現金'}],
+ missions:[
+  {id:11,type:'おてつだい',name:'おふろそうじ',detail:'おふろをあらって、マットをほしてね',reward:100,deadline:addDays(0),status:'today'},
+  {id:12,type:'べんきょう',name:'漢字ドリル 1ページ',detail:'まちがえた字は3回かこう',reward:50,deadline:addDays(0),status:'today'},
+  {id:13,type:'おてつだい',name:'せんたくものをたたむ',detail:'タオルのたたみ方を もういちど見てね',reward:100,deadline:addDays(-1),status:'redo'},
+  {id:14,type:'せいかつ',name:'くつをそろえる（1週間）',detail:'げんかんのくつを毎日そろえる',reward:200,deadline:addDays(6),status:'next'},
+  {id:15,type:'おてつだい',name:'しょっきをならべる',detail:'',reward:50,deadline:addDays(-3),status:'done',done:addDays(-3)},
+  {id:16,type:'おてつだい',name:'おふろそうじ',detail:'',reward:200,deadline:addDays(-18),status:'done',done:addDays(-18)}],
+ notices:[
+  {id:21,kind:'ops',title:'新機能「かう？まつ？」がはじまりました',body:'かうまえに くらべたり、まったものを ふりかえったりできるよ。',date:addDays(0),read:false},
+  {id:22,kind:'ops',title:'メンテナンスのお知らせ',body:'12月2日 2:00〜4:00 はアプリがつかえません。',date:addDays(-5),read:true},
+  {id:23,kind:'parent',title:'あたらしいミッション：くつをそろえる（1週間）',body:'できたら 200円だよ。',date:addDays(-1),read:false}],
+ wishes:[
+  {id:31,name:'ゲームソフト',price:4500,reason:'友だちといっしょにあそびたいから',level:'すごく',date:addDays(25),shared:true,
+   chat:[{from:'me',text:'友だちと あそびたいから、12月までに ためたい！'},{from:'parent',text:'いいね。どうやって ためるか きめてる？'}]},
+  {id:32,name:'マンガの新刊',price:500,reason:'つづきがきになるから',level:'けっこう',date:addDays(10),shared:false,chat:[]},
+  {id:33,name:'キーホルダー',price:800,reason:'ランドセルにつけたい',level:'ちょっと',date:'',shared:false,chat:[]}],
+ gaman:[
+  {id:41,name:'コンビニのおかし',price:200,reason:'ゲームをさきに買いたいから',date:addDays(-3),feel:null,review:null},
+  {id:42,name:'ガチャガチャ',price:300,reason:'ほしいのが出るかわからないから',date:addDays(-9),feel:'nowant',review:{a:[1,0,0],memo:''}},
+  {id:43,name:'キラキラシール',price:250,reason:'家に まだシールがあったから',date:addDays(-16),feel:'want',review:null}],
+ bought:[]});
+const KEY='moneyring-proto-v2';
+let S;try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+if(!S||!Array.isArray(S.ledger))S=seed();
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const bal=()=>S.card+S.cash;
+const nid=()=>++S.seq;
+const blankForm=()=>({name:'',price:'',reason:'',level:'けっこう',date:addDays(28)});
+const blankRec=()=>({dir:'minus',amount:'',title:'',src:'現金',date:iso(today())});
+const t0=today();
+const V={name:'home',wtab:'card',tab:'wish',from:'home',consult:31,review:null,parent:false,ntab:'ops',
+ ym:[t0.getFullYear(),t0.getMonth()],bf:'all',open:{check:false,redo:true,today:true,next:true},
+ form:blankForm(),rec:blankRec(),sim:{name:'',price:'',reason:'',src:'カード'},ans:[null,null,null],memo:''};
+
+/* お金を動かす：収支をおこづかい帳に記録 */
+function addLedger(title,amount,src,date=iso(today())){
+ if(src==='カード')S.card+=amount;else S.cash+=amount;
+ S.ledger.push({id:nid(),date,title,amount,src});
+}
+function pay(title,price,pref){ // prefで払う。足りなければもう一方とあわせる
+ const other=pref==='カード'?'現金':'カード',have=x=>x==='カード'?S.card:S.cash;
+ if(have(pref)>=price){addLedger(title,-price,pref);return pref}
+ const a=have(pref);if(a>0)addLedger(title,-a,pref);addLedger(title,-(price-a),other);return'カード＋現金';
+}
+const sorted=()=>[...S.wishes].sort((a,b)=>LV[a.level]-LV[b.level]||a.id-b.id);
+const rest=(w,b=bal())=>Math.max(0,w.price-b);
+function plan(price,date,b=bal()){
+ const r=Math.max(0,price-b);if(!r)return'いまのおこづかいで買えるよ';
+ if(!date)return`あと ${fmt(r)}円`;
+ const days=Math.round((new Date(date+'T00:00')-today())/864e5);
+ if(days<0)return`あと ${fmt(r)}円（目標日をすぎたよ）`;
+ const weeks=Math.max(1,Math.ceil(days/7));
+ return`${jd(date)}までに 1週間 ${fmt(Math.ceil(r/weeks))}円ずつ ためると まにあうよ`;
+}
+const pending=()=>[...S.gaman.filter(g=>!g.review).map(g=>({k:'g'+g.id,type:'g',it:g})),...S.bought.filter(b=>!b.review).map(b=>({k:'b'+b.id,type:'b',it:b}))];
+const unread=()=>S.notices.filter(n=>!n.read).length;
+function notify(kind,title,body=''){S.notices.unshift({id:nid(),kind,title,body,date:iso(today()),read:false})}
+
+let toastT;
+function toast(t){const el=app.querySelector('.toast');if(!el)return;el.textContent=t;el.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),2200)}
+const go=(name,extra={})=>{Object.assign(V,{name},extra);render();app.querySelector('.body')?.scrollTo(0,0)};
+const head=(title,back='home')=>`<div class="hd"><button class="ib" data-act="go" data-to="${back}" aria-label="もどる">${I.back}</button><h2>${title}</h2><span></span></div>`;
+const appHead=()=>`<div class="ah"><div class="who"><span class="av">${I.user}</span>娘</div><div class="ahr">
+ <button class="ib bell" data-act="go" data-to="notice" aria-label="お知らせ">${I.bell}${unread()?`<b>${unread()}</b>`:''}</button>
+ <button class="ib" data-act="go" data-to="menu" aria-label="メニュー">${I.menu}</button></div></div>`;
+const nav=cur=>`<nav class="nav">${[['home','ホーム',I.home],['book','おこづかい帳',I.book],['mission','ミッション',I.flag]].map(([k,l,ic])=>`<button class="${cur===k?'on':''}" data-act="go" data-to="${k}" ${cur===k?'aria-current="page"':''}>${ic}${l}</button>`).join('')}</nav>`;
+const foot=inner=>`<div class="foot">${inner}</div>`;
+const ledRow=e=>`<div class="led"><div><div class="d">${jdy(e.date)}<span class="tag ${e.src==='カード'?'c':''}">${esc(e.src)}</span></div><div>${esc(e.title)}</div></div>${syen(e.amount,'mid')}</div>`;
+
+/* ---------- screens ---------- */
+const scr={};
+scr.home=()=>{const p=pending().length,rec=[...S.ledger].sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id).slice(0,2);return`
+${appHead()}
+<div class="body">
+ <div class="card" style="align-items:center;gap:14px">
+  <div style="font-weight:500">お金の合計 <span class="yen" style="font-size:22px">${fmt(bal())}<small>円</small></span></div>
+  <div class="wtab"><button class="${V.wtab==='card'?'on':''}" data-act="wtab" data-v="card">${I.card}カード</button><button class="${V.wtab==='cash'?'on':''}" data-act="wtab" data-v="cash">${I.wallet}現金</button></div>
+  ${V.wtab==='card'?`<div class="mcard">${LOGO}<span>money ringカード<b>${fmt(S.card)}<small style="font-size:12px">円</small></b></span></div>`:''}
+  <div class="cashrow" style="width:100%"><span class="ic" style="color:var(--g)">${I.wallet}</span><b style="font-weight:500;flex:1">現金</b>${yen(S.cash,'mid')}</div>
+ </div>
+ <div class="card">
+  <div class="row"><h3>かう？まつ？ <span class="badge">NEW</span></h3><button class="tl" data-act="go" data-to="list">ひらく</button></div>
+  <span class="small">かうまえに ちょっと考えてみよう</span>
+  <div class="stats"><div>ほしいもの<b>${S.wishes.length}こ</b></div><div>まったもの<b>${S.gaman.length}こ</b></div><div>${p?'<span class="dot"></span>':''}ふりかえり<b>${p}こ</b></div></div>
+  <button class="link" data-act="go" data-to="sim">かうまえに くらべる ${I.arrow}</button>
+ </div>
+ <div class="card"><div class="row"><h3>おこづかい帳</h3><button class="tl" data-act="go" data-to="book">すべて表示</button></div>
+  ${rec.length?rec.map(ledRow).join(''):'<p class="empty">まだ きろくがないよ</p>'}</div>
+</div>${nav('home')}`};
+
+scr.book=()=>{const [y,m]=V.ym,list=S.ledger.filter(e=>{const d=new Date(e.date+'T00:00');return d.getFullYear()===y&&d.getMonth()===m}).sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id);
+ const inc=list.filter(e=>e.amount>0).reduce((s,e)=>s+e.amount,0),dec=-list.filter(e=>e.amount<0).reduce((s,e)=>s+e.amount,0);
+ const shown=list.filter(e=>V.bf==='all'||(V.bf==='plus'?e.amount>0:e.amount<0));
+ const isNow=y===t0.getFullYear()&&m===t0.getMonth(),diff=inc-dec;
+ const msg=!inc&&!dec?'この月は まだ きろくがないよ':diff===0?'ふえたお金と へったお金が おなじだよ':diff>0?`ふえたお金の方が ${fmt(diff)}円 おおいよ`:`へったお金の方が ${fmt(-diff)}円 おおいよ`;
+ return`${appHead()}
+ <div class="month"><button data-act="month" data-v="-1">‹ 前月</button><b>${y}年${m+1}月</b><button data-act="month" data-v="1" ${isNow?'disabled':''}>次月 ›</button></div>
+ <div class="seg" role="tablist">${[['all','すべて'],['plus','ふえた'],['minus','へった']].map(([k,l])=>`<button role="tab" class="${V.bf===k?'on':''}" data-act="bf" data-v="${k}">${l}</button>`).join('')}</div>
+ <div class="body" style="background:#fff">
+  <div class="card" style="background:#f5f5f5;box-shadow:none;gap:10px">
+   <div style="text-align:center;font-size:14px;font-weight:500">${msg}</div>
+   <div class="row"><span class="badge blue" style="font-size:13px">ふえた ${fmt(inc)}円</span><span class="badge" style="background:var(--red);font-size:13px">へった ${fmt(dec)}円</span></div>
+   <div class="tug" aria-hidden="true"><i style="width:${inc+dec?inc/(inc+dec)*100:50}%;background:var(--blue)"></i><i style="flex:1;background:var(--red)"></i></div>
+  </div>
+  <div>${shown.length?shown.map(ledRow).join(''):'<p class="empty">きろくがないよ</p>'}</div>
+ </div>
+ ${foot('<button class="btn" data-act="go" data-to="record">記録する</button>')}${nav('book')}`};
+
+scr.record=()=>{const r=V.rec;return`${head('きろくする','book')}
+<div class="body">
+ <div class="field"><span>お金は？</span><div class="chips"><button class="chip blue ${r.dir==='plus'?'on':''}" data-act="rdir" data-v="plus">ふえた</button><button class="chip red ${r.dir==='minus'?'on':''}" data-act="rdir" data-v="minus">へった</button></div></div>
+ <label class="field"><span>いくら？（円）</span><input data-r="amount" value="${esc(r.amount)}" inputmode="numeric" placeholder="れい：300"></label>
+ <label class="field"><span>${r.dir==='plus'?'どうして ふえた？':'なにに つかった？'}</span><input data-r="title" value="${esc(r.title)}" maxlength="30" placeholder="${r.dir==='plus'?'れい：おこづかい':'れい：ジュース'}"></label>
+ <div class="field"><span>どっちの お金？</span><div class="chips">${['カード','現金'].map(s=>`<button class="chip ${r.src===s?'on':''}" data-act="rsrc" data-v="${s}">${s}（${fmt(s==='カード'?S.card:S.cash)}円）</button>`).join('')}</div></div>
+ <label class="field"><span>いつ？</span><input type="date" data-r="date" value="${esc(r.date)}" max="${iso(today())}"></label>
+ <p class="err" id="recerr" hidden></p>
+ ${r.dir==='minus'?`<button class="link" data-act="go" data-to="sim">これから買うなら「かうまえに くらべる」 ${I.arrow}</button>`:''}
+</div>${foot('<button class="btn" data-act="saverec">きろくする</button>')}`};
+
+scr.mission=()=>{const ms=S.missions,done=ms.filter(x=>x.status==='done');
+ const wk=(()=>{const d=today();d.setDate(d.getDate()-((d.getDay()+6)%7));return iso(d)})(),mo=iso(new Date(t0.getFullYear(),t0.getMonth(),1));
+ const sec=(k,label)=>{const l=ms.filter(x=>x.status===k),o=V.open[k];return`<button class="acc ${o?'open':''}" data-act="acc" data-v="${k}" aria-expanded="${o}">${I.chev}${label}（${l.length}）</button>${o?l.map(misCard).join(''):''}`};
+ return`${appHead()}
+ <div class="body flush">
+  <div class="sec"><div class="row"><b style="font-weight:500">クリアしたミッション</b></div>
+   <div class="row"><b style="font-weight:500">今週</b><span class="yen" style="color:var(--g);font-size:22px">${done.filter(x=>x.done>=wk).length}<small>件</small></span></div>
+   <div class="row" style="justify-content:flex-end;gap:16px;border-top:1px solid var(--line);padding-top:10px;font-size:14px;font-weight:300"><span>今月${done.filter(x=>x.done>=mo).length}件</span><span>すべて${done.length}件</span></div></div>
+  <div style="padding:4px 16px 20px">${sec('check','チェックまちのミッション')}${sec('redo','やりなおしのミッション')}${sec('today','今日のミッション')}${sec('next','つぎのミッション')}</div>
+ </div>${nav('mission')}`};
+function misCard(x){return`<div class="mis">
+ <div class="row"><span class="t">${esc(x.type)}　${esc(x.name)}</span><span class="dl">${jd(x.deadline)}</span></div>
+ ${yen(x.reward,'')}
+ ${x.status==='redo'?`<span style="color:var(--red);font-size:12px;display:flex;gap:4px;align-items:center">${I.warn}やりなおし</span>`:''}
+ ${x.status==='check'?'<span class="small" style="color:var(--g)">おうちの人の チェックを まっているよ</span>':''}
+ ${x.detail?`<span class="dsc">${esc(x.detail)}</span>`:''}
+ <div class="row" style="justify-content:flex-end;gap:8px;margin-top:6px">
+ ${x.status==='check'?`<button class="chip" style="flex:none;padding:4px 12px" data-act="mredo" data-id="${x.id}">（デモ）やりなおし</button><button class="pill" data-act="mok" data-id="${x.id}">（デモ）OKする</button>`
+  :x.status==='next'?'<span class="small">まだ はじまっていないよ</span>':`<button class="pill" data-act="mdone" data-id="${x.id}">完了する</button>`}
+ </div></div>`}
+
+scr.notice=()=>{const l=S.notices.filter(n=>n.kind===V.ntab),u=k=>S.notices.some(n=>n.kind===k&&!n.read);
+ setTimeout(()=>{let ch=false;l.forEach(n=>{if(!n.read){n.read=true;ch=true}});if(ch)save()},0);
+ return`${head('お知らせ')}
+ <div class="tabs" role="tablist"><button role="tab" class="${V.ntab==='ops'?'on':''}" data-act="ntab" data-v="ops">${u('ops')&&V.ntab!=='ops'?'<span class="dot"></span>':''}運営からのお知らせ</button><button role="tab" class="${V.ntab==='parent'?'on':''}" data-act="ntab" data-v="parent">${u('parent')&&V.ntab!=='parent'?'<span class="dot"></span>':''}保護者からの依頼</button></div>
+ <div class="body flush">${l.length?l.map(n=>`<div class="ntc">${n.read?'':'<span class="badge" style="background:var(--red)">あたらしい</span>'}<b>${esc(n.title)}</b>${n.body?`<span style="font-size:14px;font-weight:300">${esc(n.body)}</span>`:''}<span class="small">${jd(n.date)}</span></div>`).join(''):'<p class="empty">まだお知らせがありません</p>'}</div>`};
+
+scr.menu=()=>`${head('メニュー')}
+<div class="body">
+ <div class="mrow" role="group"><span>通知設定</span><button class="toggle ${S.notify?'on':''}" data-act="notify" role="switch" aria-checked="${S.notify}" aria-label="通知"></button></div>
+ <button class="mrow" data-act="go" data-to="list"><span>かう？まつ？</span>${I.chev}</button>
+ <button class="mrow" data-act="go" data-to="review"><span>おかいもの ふりかえり</span>${I.chev}</button>
+ <div class="card"><span class="lbl">デモそうさ（ユーザーテスト用）</span>
+  <div class="chips"><button class="chip" data-act="allow">おこづかい +500円</button><button class="chip" data-act="reset">さいしょに もどす</button></div>
+  <span class="small">「おこづかい +500円」はカードに入り、おこづかい帳にも記録されます。</span></div>
+</div>`;
+
+/* --- かう？まつ？ --- */
+scr.list=()=>{const w=V.tab==='wish';return`
+${head('かう？まつ？')}
+<div class="tabs" role="tablist"><button role="tab" class="${w?'on':''}" data-act="tab" data-t="wish">ほしいもの</button><button role="tab" class="${w?'':'on'}" data-act="tab" data-t="gaman">がまんしたもの</button></div>
+<div class="body">${w?wishBody():gamanBody()}</div>
+${foot(w?'<button class="btn" data-act="go" data-to="add">ほしいものを追加する</button>':'<button class="btn" data-act="go" data-to="sim">かうまえに くらべる</button>')}`};
+function wishBody(){const ws=sorted(),total=ws.reduce((a,b)=>a+b.price,0);
+ return`<div class="card"><span class="lbl">いまのおこづかい（カード＋現金）</span>${yen(bal(),'big')}
+  <span class="small">ほしいもの ${ws.length}こ ・ ぜんぶで ${fmt(total)}円</span>
+  <button class="link" data-act="go" data-to="sim">かうまえに くらべてみる ${I.arrow}</button></div>
+ <div class="row"><span class="lbl">ほしいもの（だいじな順）</span><button class="tl" data-act="go" data-to="review">ふりかえり${pending().length?`（${pending().length}）`:''}</button></div>
+ ${ws.length?ws.map(wishCard).join(''):'<p class="empty">まだ ありません。ほしいものを追加してみよう</p>'}`}
+function wishCard(w,i){const pct=Math.min(100,bal()/w.price*100),r=rest(w);return`
+<div class="card">
+ <div class="wish"><div class="thumb">${I.gift}</div>
+  <div><span class="badge ${i?'gray':''}">${i+1}ばん</span><div style="font-weight:500">${esc(w.name)}</div>${yen(w.price,'mid')}</div>
+  <button class="x" data-act="delwish" data-id="${w.id}" aria-label="${esc(w.name)}をけす">けす</button></div>
+ ${w.reason?`<span style="font-size:14px;font-weight:300;color:var(--sub)">りゆう：${esc(w.reason)}</span>`:''}
+ <div class="bar" role="progressbar" aria-valuenow="${Math.round(pct)}" aria-valuemin="0" aria-valuemax="100"><i style="width:${pct}%"></i></div>
+ <div class="row"><span style="font-size:14px;font-weight:500;color:var(--g)">${r?`あと ${fmt(r)}円`:'いまのおこづかいで買えるよ'}</span><span class="small">${w.date?'目標 '+jd(w.date):'目標なし'}</span></div>
+ ${r&&w.date?`<span class="small">${esc(plan(w.price,w.date))}</span>`:''}
+ <div class="chips"><button class="chip" data-act="consult" data-id="${w.id}">おうちの人と そうだん${w.chat.length?`（${w.chat.length}）`:''}</button>${!r?`<button class="chip" data-act="buywish" data-id="${w.id}">買った</button>`:''}</div>
+</div>`}
+function gamanBody(){return`
+ <div class="card"><div class="row"><span class="lbl">まったもの</span><span class="yen mid" style="color:var(--g)">${S.gaman.length}<small>こ</small></span></div>
+  <div class="note gray">まったお金は「ちょきん」とはべつだよ。おこづかいが へっていない、ということ。</div></div>
+ <div class="row"><span class="lbl">いまの きもちを えらぼう</span><span class="small">あたらしい順</span></div>
+ ${S.gaman.length?[...S.gaman].sort((a,b)=>b.date.localeCompare(a.date)).map(g=>`
+ <div class="card">
+  <div class="row"><div><span class="small">${jd(g.date)}に まった</span><div style="font-weight:500">${esc(g.name)}</div></div>${yen(g.price,'mid')}</div>
+  ${g.reason?`<span style="font-size:14px;font-weight:300;color:var(--sub)">まったりゆう：${esc(g.reason)}</span>`:''}
+  <div class="chips"><button class="chip blue ${g.feel==='want'?'on':''}" data-act="feel" data-id="${g.id}" data-v="want" aria-pressed="${g.feel==='want'}">やっぱりほしい</button>
+  <button class="chip ${g.feel==='nowant'?'on':''}" data-act="feel" data-id="${g.id}" data-v="nowant" aria-pressed="${g.feel==='nowant'}">もうほしくない</button></div>
+  ${g.feel==='want'&&!S.wishes.some(w=>w.name===g.name)?`<button class="link" data-act="towish" data-id="${g.id}">ほしいものリストに入れる ${I.arrow}</button>`:''}
+ </div>`).join(''):'<p class="empty">まだ ありません</p>'}`}
+
+scr.add=()=>{const f=V.form;return`
+${head('ほしいものを登録','list')}
+<div class="body"><form id="addf" style="display:contents">
+ <label class="field"><span>なまえ</span><input data-f="name" value="${esc(f.name)}" placeholder="れい：ゲームソフト" maxlength="30"></label>
+ <label class="field"><span>ねだん（円）</span><input data-f="price" value="${esc(f.price)}" inputmode="numeric" placeholder="れい：4500"></label>
+ <label class="field"><span class="row">ほしいりゆう <span class="small">あとで ふりかえるときに見るよ</span></span><textarea data-f="reason" maxlength="60" placeholder="れい：友だちと あそびたいから">${esc(f.reason)}</textarea></label>
+ <div class="field"><span>どれくらい ほしい？</span><div class="chips">${Object.keys(LV).map(l=>`<button type="button" class="chip ${f.level===l?'on':''}" data-act="level" data-v="${l}" aria-pressed="${f.level===l}">${l}</button>`).join('')}</div></div>
+ <label class="field"><span>いつまでに 買いたい？</span><input type="date" data-f="date" value="${esc(f.date)}" min="${iso(today())}"></label>
+ <div class="card" id="calc" style="border:1.5px solid var(--g);box-shadow:none"></div>
+ <p class="err" id="adderr" hidden></p>
+</form></div>
+${foot('<button class="btn" data-act="addwish">リストに入れる</button>')}`};
+function calcHtml(){const p=num(V.form.price);
+ if(!p)return'<span class="small">ねだんを入れると、あといくら ひつようか わかるよ</span>';
+ return`<div class="row"><span class="small" style="font-size:14px">いまのおこづかい</span>${yen(bal())}</div>
+ <div class="row"><span style="font-size:14px;font-weight:500">あと ひつようなお金</span>${yen(Math.max(0,p-bal()),'mid')}</div>
+ <span style="font-size:12px;color:var(--g)">${esc(plan(p,V.form.date))}</span>`}
+
+scr.sim=()=>`
+${head('かうまえに くらべる',V.from)}
+<div class="body">
+ <div class="card"><span class="lbl">いま 買おうとしているもの</span>
+  <input data-s="name" value="${esc(V.sim.name)}" placeholder="なにを 買う？（れい：おかし）" maxlength="30">
+  <input data-s="price" value="${esc(V.sim.price)}" inputmode="numeric" placeholder="ねだん（円）">
+  <div class="chips">${['カード','現金'].map(s=>`<button class="chip ${V.sim.src===s?'on':''}" data-act="ssrc" data-v="${s}">${s}で はらう（${fmt(s==='カード'?S.card:S.cash)}円）</button>`).join('')}</div></div>
+ <div id="simres"></div>
+ <label class="field"><span class="row">まつなら りゆうは？ <span class="small">なくてもOK</span></span><input data-s="reason" value="${esc(V.sim.reason)}" placeholder="れい：ゲームをさきに買いたい" maxlength="40"></label>
+ <div class="note">どっちをえらんでも だいじょうぶ。えらんだら あとで ふりかえってみよう。</div>
+</div>
+${foot('<button class="btn out" data-act="kau" id="kaub">かう</button><button class="btn out" data-act="matsu" id="matsub">まつ</button>')}`;
+function simHtml(){
+ const p=num(V.sim.price),B=bal(),top=sorted().find(w=>w.price>B)||sorted()[0];
+ if(!p)return'<p class="empty">ねだんを入れると、かう・まつを くらべられるよ</p>';
+ if(p>B)return`<div class="card"><span class="err" style="font-size:14px">おこづかいが ${fmt(p-B)}円 たりないよ。いまは買えないので、ほしいものリストに入れて ためてみよう</span></div>`;
+ const have=V.sim.src==='カード'?S.card:S.cash;
+ const opt=(t,b,cls)=>{const r=top?rest(top,b):0;return`<div class="card ${cls}"><span class="badge ${cls?'':'g'}">${t}</span><span class="small">のこるお金</span>${yen(b,'mid')}
+  ${top?`<span class="small">${esc(top.name)}まで</span><b style="font-weight:500;color:${cls?'var(--or)':'var(--g)'}">${r?'あと '+fmt(r)+'円':'買える！'}</b>
+  <div class="bar"><i style="width:${Math.min(100,b/top.price*100)}%;${cls?'background:var(--or)':''}"></i></div>`:''}</div>`};
+ const others=sorted().filter(w=>w!==top);
+ return`${have<p?`<div class="note gray">${V.sim.src}だけでは たりないので、のこりは ${V.sim.src==='カード'?'現金':'カード'}から はらうよ</div>`:''}
+ <div class="cmp" style="margin-top:${have<p?12:0}px">${opt('いま かう',B-p,'or')}${opt('こんかいは まつ',B,'')}</div>
+ ${others.length?`<div class="card" style="margin-top:12px"><span class="lbl">ほかの ほしいもの</span>${others.map(w=>{const a=rest(w,B-p),b=rest(w);return`<div><div style="font-size:14px;font-weight:500">${esc(w.name)}（${fmt(w.price)}円）</div>
+ <div class="row small"><span style="color:var(--or)">かう → ${a?'あと'+fmt(a)+'円':'まだ買える'}</span><span style="color:var(--g)">まつ → ${b?'あと'+fmt(b)+'円':'まだ買える'}</span></div></div>`}).join('')}</div>`:''}`}
+
+const QS={g:[['いまでも ほしい？',['ほしい','もういらない','わからない']],['まってみて どうだった？',['よかった','ざんねん','ふつう']],['つぎに 同じばめんなら？',['また まつ','かう','そのとき決める']]],
+ b:[['買って よかった？',['よかった','ざんねん','ふつう']],['いまでも だいじ？',['だいじ','そうでもない','わからない']],['つぎに 同じばめんなら？',['また かう','まつ','そのとき決める']]]};
+scr.review=()=>{
+ if(V.review){const type=V.review[0],id=+V.review.slice(1),it=(type==='g'?S.gaman:S.bought).find(x=>x.id===id);
+  if(!it){V.review=null;return scr.review()}
+  const days=Math.max(0,Math.round((today()-new Date(it.date+'T00:00'))/864e5));
+  return`${head('おかいもの ふりかえり','review')}
+  <div class="body">
+   <div class="card"><span class="badge ${type==='g'?'g':''}">${days?days+'日まえに':'きょう'}${type==='g'?' まったもの':' 買ったもの'}</span>
+    <div class="row"><b style="font-size:18px;font-weight:500">${esc(it.name)}</b>${yen(it.price,'mid')}</div>
+    ${it.reason?`<span class="small">そのときの りゆう：${esc(it.reason)}</span>`:''}</div>
+   ${QS[type].map(([q,o],qi)=>`<div class="card"><h3>${qi+1}. ${q}</h3><div class="chips" role="group" aria-label="${q}">${o.map((l,oi)=>`<button class="chip ${V.ans[qi]===oi?'on':''}" data-act="ans" data-q="${qi}" data-o="${oi}" aria-pressed="${V.ans[qi]===oi}">${l}</button>`).join('')}</div></div>`).join('')}
+   <label class="field"><span class="row">ひとこと <span class="small">なくてもOK</span></span><input data-m="1" value="${esc(V.memo)}" maxlength="60" placeholder="れい：家にあったおかしで まんぞくできた"></label>
+   <div class="note">かっても まっても、どのこたえも まちがいじゃないよ。</div>
+  </div>${foot(`<button class="btn" data-act="saverev" ${V.ans.includes(null)?'disabled':''}>ふりかえりを のこす</button>`)}`}
+ const p=pending(),done=[...S.gaman.filter(g=>g.review).map(g=>['g',g]),...S.bought.filter(b=>b.review).map(b=>['b',b])];
+ return`${head('おかいもの ふりかえり',['menu','home'].includes(V.from)?V.from:'list')}
+ <div class="body">
+  <span class="lbl">ふりかえりを まっているもの</span>
+  ${p.length?p.map(x=>`<button class="card" style="border:0;text-align:left;cursor:pointer;font:inherit;color:inherit" data-act="openrev" data-k="${x.k}">
+   <span class="badge ${x.type==='g'?'g':''}">${x.type==='g'?'まったもの':'買ったもの'}</span>
+   <div class="row" style="width:100%"><b style="font-weight:500">${esc(x.it.name)}</b>${yen(x.it.price)}</div><span class="small">${jd(x.it.date)}</span></button>`).join(''):'<p class="empty">ぜんぶ ふりかえったよ</p>'}
+  ${done.length?`<span class="lbl">ふりかえったもの</span>${done.map(([t,x])=>`<div class="card"><div class="row"><b style="font-weight:500">${esc(x.name)}</b>${yen(x.price)}</div>
+   <span class="small">${QS[t].map(([q,o],i)=>o[x.review.a[i]]).join(' ・ ')}${x.review.memo?' ／ '+esc(x.review.memo):''}</span></div>`).join('')}`:''}
+ </div>`};
+
+scr.consult=()=>{const w=S.wishes.find(x=>x.id===V.consult);if(!w)return scr.list();return`
+${head('おうちの人と そうだん','list')}
+<div class="body">
+ <div class="card"><div class="wish" style="grid-template-columns:56px 1fr"><div class="thumb">${I.gift}</div><div><div style="font-weight:500">${esc(w.name)}</div>${yen(w.price,'mid')}</div></div>
+  ${w.reason?`<span style="font-size:14px;font-weight:300;color:var(--sub)">りゆう：${esc(w.reason)}</span>`:''}
+  <span class="small">${esc(plan(w.price,w.date))}</span></div>
+ <div class="card"><div class="row"><div><div style="font-size:14px;font-weight:500">おうちの人に 見せる</div><span class="small">見せたいものだけ えらべるよ</span></div>
+  <button class="toggle ${w.shared?'on':''}" data-act="share" role="switch" aria-checked="${w.shared}" aria-label="おうちの人に見せる"></button></div></div>
+ ${w.shared?`<div class="row"><span class="small">いま書く人</span><div class="chips" style="flex:0 0 220px"><button class="chip ${V.parent?'':'on'}" data-act="who" data-v="0">じぶん</button><button class="chip ${V.parent?'on':''}" data-act="who" data-v="1">おうちの人</button></div></div>
+ ${w.chat.length?w.chat.map(m=>`<div class="msg ${m.from==='me'?'me':''}">${m.from==='me'?'':'<span class="small">おうちの人</span>'}<p>${esc(m.text)}</p></div>`).join(''):'<p class="empty">ほしいりゆうを つたえてみよう</p>'}`
+ :'<p class="empty">「おうちの人に 見せる」をオンにすると、そうだんできるよ</p>'}
+</div>
+${w.shared?`<div class="foot" style="align-items:center"><input id="chatin" placeholder="${V.parent?'おうちの人として 書く':'メッセージを書く'}" maxlength="80" style="border-radius:22px;background:#f5f5f5;border-color:#f5f5f5"><button class="ib" style="background:var(--g)" data-act="send" aria-label="おくる">${I.send}</button></div>`:''}`};
+
+function render(){
+ const t=new Date();
+ app.innerHTML=`<div class="sb"><span>${t.getHours()}:${String(t.getMinutes()).padStart(2,'0')}</span><span>● ● ●</span></div>${(scr[V.name]||scr.home)()}<div class="toast" role="status"></div>`;
+ if(V.name==='add')document.getElementById('calc').innerHTML=calcHtml();
+ if(V.name==='sim')updSim();
+}
+function updSim(){const box=document.getElementById('simres');if(!box)return;box.innerHTML=simHtml();
+ const p=num(V.sim.price),n=V.sim.name.trim();
+ document.getElementById('kaub').disabled=!(p>0&&p<=bal()&&n);document.getElementById('matsub').disabled=!(p>0&&n)}
+
+/* ---------- events ---------- */
+app.addEventListener('input',e=>{const el=e.target;
+ if(el.dataset.f){V.form[el.dataset.f]=el.value;document.getElementById('calc').innerHTML=calcHtml()}
+ if(el.dataset.s){V.sim[el.dataset.s]=el.value;if(el.dataset.s!=='reason')updSim()}
+ if(el.dataset.r)V.rec[el.dataset.r]=el.value;
+ if(el.dataset.m)V.memo=el.value});
+app.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='chatin'){e.preventDefault();app.querySelector('[data-act=send]').click()}
+ if(e.key==='Enter'&&e.target.closest('#addf')&&e.target.tagName==='INPUT')e.preventDefault()});
+app.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act,id=+b.dataset.id;
+ switch(a){
+ case'go':{const to=b.dataset.to;
+   if(to==='review'&&V.name==='review'&&V.review){V.review=null;render();break}
+   const ex={};
+   if(to==='sim'){ex.from=['list','book','record'].includes(V.name)?(V.name==='record'?'book':V.name):'home';ex.sim={name:'',price:'',reason:'',src:'カード'}}
+   if(to==='review'){ex.review=null;ex.from=V.name}
+   if(to==='record')ex.rec=blankRec();
+   go(to,ex);break}
+ case'wtab':V.wtab=b.dataset.v;render();break;
+ case'month':{let [y,m]=V.ym;m+=+b.dataset.v;if(m<0){m=11;y--}if(m>11){m=0;y++}V.ym=[y,m];render();break}
+ case'bf':V.bf=b.dataset.v;render();break;
+ case'rdir':V.rec.dir=b.dataset.v;render();break;
+ case'rsrc':V.rec.src=b.dataset.v;render();break;
+ case'saverec':{const r=V.rec,amt=num(r.amount),er=document.getElementById('recerr');
+   if(!amt||!r.title.trim()){er.hidden=false;er.textContent='いくらか と なにか を 入れてね';break}
+   const have=r.src==='カード'?S.card:S.cash;
+   if(r.dir==='minus'&&amt>have){er.hidden=false;er.textContent=`${r.src}は ${fmt(have)}円 しかないよ`;break}
+   addLedger(r.title.trim(),r.dir==='plus'?amt:-amt,r.src,r.date||iso(today()));save();
+   const d=new Date((r.date||iso(today()))+'T00:00');V.ym=[d.getFullYear(),d.getMonth()];go('book');toast('おこづかい帳に きろくしたよ');break}
+ case'acc':V.open[b.dataset.v]=!V.open[b.dataset.v];render();break;
+ case'mdone':{const m=S.missions.find(x=>x.id===id);m.status='check';V.open.check=true;save();render();toast('おうちの人に チェックを おねがいしたよ');break}
+ case'mok':{const m=S.missions.find(x=>x.id===id);m.status='done';m.done=iso(today());addLedger('ミッション：'+m.name,m.reward,'カード');
+   if(S.notify)notify('parent',`ミッション「${m.name}」がクリアになりました`,`${fmt(m.reward)}円が カードに入ったよ`);save();render();toast(`クリア！ ${fmt(m.reward)}円 ふえたよ`);break}
+ case'mredo':{const m=S.missions.find(x=>x.id===id);m.status='redo';V.open.redo=true;if(S.notify)notify('parent',`ミッション「${m.name}」は やりなおしです`,'もういちど やってみよう');save();render();break}
+ case'ntab':V.ntab=b.dataset.v;render();break;
+ case'notify':S.notify=!S.notify;save();render();break;
+ case'tab':V.tab=b.dataset.t;render();break;
+ case'level':V.form.level=b.dataset.v;render();break;
+ case'addwish':{const f=V.form,p=num(f.price),er=document.getElementById('adderr');
+   if(!f.name.trim()||!p){er.hidden=false;er.textContent='なまえと ねだんを 入れてね';break}
+   S.wishes.push({id:nid(),name:f.name.trim(),price:p,reason:f.reason.trim(),level:f.level,date:f.date,shared:false,chat:[]});save();
+   V.form=blankForm();go('list',{tab:'wish'});toast('ほしいものリストに入れたよ');break}
+ case'delwish':S.wishes=S.wishes.filter(w=>w.id!==id);save();render();toast('リストから けしたよ');break;
+ case'buywish':{const w=S.wishes.find(x=>x.id===id);const used=pay(w.name,w.price,S.card>=w.price?'カード':'現金');
+   S.bought.push({id:nid(),name:w.name,price:w.price,reason:w.reason,date:iso(today()),review:null});
+   S.wishes=S.wishes.filter(x=>x.id!==id);save();render();toast(`${w.name}を 買ったよ（${used}）`);break}
+ case'feel':{const g=S.gaman.find(x=>x.id===id);g.feel=g.feel===b.dataset.v?null:b.dataset.v;save();render();break}
+ case'towish':{const g=S.gaman.find(x=>x.id===id);S.wishes.push({id:nid(),name:g.name,price:g.price,reason:g.reason,level:'けっこう',date:'',shared:false,chat:[]});save();render();toast('ほしいものリストに入れたよ');break}
+ case'ssrc':V.sim.src=b.dataset.v;app.querySelectorAll('[data-act=ssrc]').forEach(x=>x.classList.toggle('on',x===b));updSim();break;
+ case'kau':case'matsu':{const p=num(V.sim.price),n=V.sim.name.trim();if(!p||!n)break;
+   if(a==='kau'){pay(n,p,V.sim.src);S.bought.push({id:nid(),name:n,price:p,reason:'',date:iso(today()),review:null})}
+   else S.gaman.push({id:nid(),name:n,price:p,reason:V.sim.reason.trim(),date:iso(today()),feel:null,review:null});
+   save();go('list',{tab:a==='kau'?'wish':'gaman'});toast(a==='kau'?`${n}を 買ったよ。おこづかい帳にも きろくしたよ`:`${n}を まつことにしたよ`);break}
+ case'openrev':V.review=b.dataset.k;V.ans=[null,null,null];V.memo='';render();break;
+ case'ans':V.ans[+b.dataset.q]=+b.dataset.o;render();break;
+ case'saverev':{const type=V.review[0],it=(type==='g'?S.gaman:S.bought).find(x=>x.id===+V.review.slice(1));
+   it.review={a:[...V.ans],memo:V.memo.trim()};if(type==='g')it.feel=V.ans[0]===0?'want':V.ans[0]===1?'nowant':it.feel;
+   save();V.review=null;render();toast('ふりかえりを のこしたよ');break}
+ case'consult':go('consult',{consult:id,parent:false});break;
+ case'share':{const w=S.wishes.find(x=>x.id===V.consult);w.shared=!w.shared;save();render();break}
+ case'who':V.parent=b.dataset.v==='1';render();break;
+ case'send':{const inp=document.getElementById('chatin'),t=inp.value.trim();if(!t)break;
+   const w=S.wishes.find(x=>x.id===V.consult);w.chat.push({from:V.parent?'parent':'me',text:t});
+   if(V.parent&&S.notify)notify('parent',`「${w.name}」に おうちの人から コメント`,t);
+   save();render();const bd=app.querySelector('.body');bd.scrollTop=bd.scrollHeight;document.getElementById('chatin').focus();break}
+ case'allow':addLedger('おこづかい',500,'カード');save();render();toast('おこづかいが 500円 ふえたよ（カード）');break;
+ case'reset':S=seed();save();V.form=blankForm();V.ym=[t0.getFullYear(),t0.getMonth()];render();toast('さいしょの じょうたいに もどしたよ');break;
+ }});
+render();
+}
+</script>
+</body>
+</html>
